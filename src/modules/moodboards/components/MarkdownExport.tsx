@@ -1,0 +1,19 @@
+import { useState } from 'react';
+import { Copy, Download, FileText } from 'lucide-react';
+import { moodboardsApi, errorMessage, exportUrl, newKey } from '../api/moodboards-api';
+import type { Version, ExportArtifact } from '../types/moodboard.types';
+import { Notice } from './WorkspaceUi';
+
+export function MarkdownExport({ projectId, boardId, version, onReview }: {projectId: string; boardId: string; version: Version; onReview: () => void}) {
+  const [language, setLanguage] = useState<'id' | 'en'>('id');
+  const [artifact, setArtifact] = useState<ExportArtifact | null>(null);
+  const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [copied, setCopied] = useState(false);
+  async function generate() { setBusy(true); setError(''); try { setArtifact(await moodboardsApi.export(projectId, boardId, version.id, language, newKey())); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); } }
+  async function confirm() { if (!artifact) return; setBusy(true); setError(''); try { setArtifact(await moodboardsApi.confirmExport(projectId, boardId, artifact.id)); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); } }
+  if (version.review_status !== 'approved') return <div className="mb-panel p-8"><FileText className="mb-4 text-forest-600"/><h2 className="text-xl font-semibold">Selesaikan arahan visual terlebih dahulu</h2><p className="mt-3 max-w-xl text-sm leading-6 text-stone-500">Markdown dibuat dari versi yang sudah direview dan disetujui, sehingga arahan yang dibawa ke AI lain sesuai keputusan Anda.</p><button className="mb-button mt-6" onClick={onReview}>Review temuan</button></div>;
+  return <div className="space-y-5"><div className="mb-panel flex flex-wrap items-center justify-between gap-4 p-6"><div><h2 className="font-semibold">Arahan siap untuk proses kreatif</h2><p className="mt-1 text-sm text-stone-500">Versi {version.version_number} · Referensi, batasan, dan instruksi visual dalam satu file.</p></div><div className="flex flex-wrap gap-3"><select aria-label="Bahasa Markdown" className="mb-input w-auto" value={language} disabled={busy} onChange={e => setLanguage(e.target.value as 'id' | 'en')}><option value="id">Bahasa Indonesia</option><option value="en">English</option></select><button className="mb-button" disabled={busy} onClick={generate}>{busy ? 'Memproses…' : 'Buat Markdown'}</button></div></div>
+    {error && <Notice>{error}</Notice>}
+    {artifact && <div className="mb-panel overflow-hidden"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 p-5"><div className="flex items-center gap-2 text-sm font-medium"><FileText size={17}/>{artifact.filename}</div><div className="flex gap-2">{artifact.status === 'ready' ? <><button className="mb-button-secondary" onClick={async () => {try {await navigator.clipboard.writeText(artifact.content); setCopied(true);} catch {setError('Penyalinan tidak tersedia. Unduh file Markdown.');}}}><Copy size={15}/>{copied ? 'Tersalin' : 'Salin'}</button><a className="mb-button" href={exportUrl(projectId, boardId, artifact.id)} download={artifact.filename}><Download size={15}/>Unduh .md</a></> : <button className="mb-button" disabled={busy} onClick={confirm}>Konfirmasi terjemahan</button>}</div></div>{artifact.status !== 'ready' && <div className="p-5"><Notice kind="info">Periksa terjemahan bahasa Inggris sebelum mengonfirmasi dan mengunduh.</Notice></div>}<pre className="max-h-[65vh] overflow-auto whitespace-pre-wrap break-words bg-stone-50 p-6 font-mono text-xs leading-6 text-stone-700">{artifact.content}</pre></div>}
+    {!artifact && <div className="mb-panel flex min-h-64 flex-col items-center justify-center p-8 text-center"><FileText size={32} className="mb-4 text-stone-300"/><p className="text-sm text-stone-500">Pilih bahasa, lalu buat file Markdown Anda.</p></div>}
+  </div>;
+}
