@@ -1,0 +1,198 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { projectsApi } from '../api/projects-api';
+import type { Project } from '../types/project.types';
+import { briefApi } from '../../brief/api/brief-api';
+import type { ProjectBrief } from '../../brief/types/brief.types';
+import { BriefSummaryCard } from '../../brief/components/BriefSummaryCard';
+import { BriefStatusBadge } from '../../brief/components/BriefStatusBadge';
+import { ApiClientError } from '../../../core/network/api-client';
+import { Button } from '../../../core/ui/Button/Button';
+import { IdBadge } from '../../../core/ui/Badge/IdBadge';
+import { StatusBadge } from '../../../core/ui/Badge/StatusBadge';
+import { LoadingIndicator } from '../../../core/ui/Loading/LoadingIndicator';
+import { ErrorBanner } from '../../../core/ui/Banner/ErrorBanner';
+import { ShotBoard } from '../../shots/components/ShotBoard';
+
+export const ProjectOverviewPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  const [project, setProject] = useState<Project | null>(null);
+  const [brief, setBrief] = useState<ProjectBrief | null>(null);
+  const [briefLoading, setBriefLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<{
+    status: number;
+    message: string;
+    isNotFound: boolean;
+  } | null>(null);
+
+  const fetchProject = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await projectsApi.getProject(id);
+      setProject(data);
+
+      try {
+        setBriefLoading(true);
+        const briefData = await briefApi.getActiveBrief(id);
+        setBrief(briefData.brief);
+      } catch {
+        setBrief(null);
+      } finally {
+        setBriefLoading(false);
+      }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError({
+          status: err.status,
+          message:
+            err.status === 404
+              ? 'Project not found or inaccessible'
+              : err.message,
+          isNotFound: err.status === 404,
+        });
+      } else {
+        setError({
+          status: 500,
+          message: 'An unexpected error occurred while loading project workspace.',
+          isNotFound: false,
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchProject();
+  }, [fetchProject]);
+
+  const handleBackToProjects = () => {
+    navigate('/projects');
+  };
+
+  const handleOpenBriefWorkspace = () => {
+    if (project) {
+      navigate(`/projects/${encodeURIComponent(project.id)}/brief`);
+    }
+  };
+
+  return (
+    <div className="project-overview-page" data-testid="project-overview-container">
+      {project && (
+        <div className="project-overview-nav">
+          <Button variant="secondary" size="sm" onClick={handleBackToProjects}>
+            &larr; Back to Projects
+          </Button>
+        </div>
+      )}
+
+      {loading && (
+        <LoadingIndicator message="Loading project workspace..." />
+      )}
+
+      {!loading && error && (
+        <div className="project-error-state">
+          {error.isNotFound ? (
+            <div className="empty-state" role="alert">
+              <h2 className="empty-state-title">Project not found or inaccessible</h2>
+              <p className="empty-state-description">
+                The requested project does not exist or you do not have permission to access it.
+              </p>
+              <div className="empty-state-action">
+                <Button variant="primary" onClick={handleBackToProjects}>
+                  Back to Projects
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <ErrorBanner
+              title="Error Loading Project"
+              message={error.message}
+              onRetry={fetchProject}
+            />
+          )}
+        </div>
+      )}
+
+      {!loading && !error && project && (
+        <>
+          <header className="project-overview-header">
+            <div className="project-overview-header-row">
+              <div className="project-overview-header-info">
+                <h1 className="page-title">{project.name}</h1>
+                <div className="project-overview-meta">
+                  <IdBadge id={project.id} />
+                  <span className="overview-status-container">
+                    <StatusBadge status={project.status} />
+                  </span>
+                  {brief && (
+                    <span className="overview-brief-status-container" data-testid="overview-brief-badge">
+                      <BriefStatusBadge status={brief.review_status} />
+                    </span>
+                  )}
+                </div>
+                {project.description && (
+                  <p className="project-overview-description">{project.description}</p>
+                )}
+              </div>
+              <div className="project-overview-header-actions">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleOpenBriefWorkspace}
+                  data-testid="header-brief-workspace-btn"
+                >
+                  Brief Workspace
+                </Button>
+              </div>
+            </div>
+          </header>
+
+          <main className="workspace-grid">
+            <section className="workspace-section" aria-labelledby="brief-heading">
+              <h2 id="brief-heading" className="workspace-section-title">
+                Active Brief
+              </h2>
+              {briefLoading ? (
+                <LoadingIndicator message="Loading active brief..." />
+              ) : brief ? (
+                <BriefSummaryCard
+                  brief={brief}
+                  projectId={project.id}
+                  onOpenWorkspace={handleOpenBriefWorkspace}
+                />
+              ) : (
+                <div className="workspace-placeholder" data-testid="brief-placeholder">
+                  <p>No brief yet</p>
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleOpenBriefWorkspace}
+                      data-testid="open-brief-workspace-btn"
+                    >
+                      Open Brief Workspace
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <section className="workspace-section workspace-shots-section" aria-labelledby="shots-heading">
+              <h2 id="shots-heading" className="workspace-section-title">
+                Shot Board
+              </h2>
+              <ShotBoard projectId={project.id} />
+            </section>
+          </main>
+        </>
+      )}
+    </div>
+  );
+};
