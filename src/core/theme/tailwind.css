@@ -1,0 +1,48 @@
+@layer theme, base, legacy, components, utilities;
+@import 'tailwindcss';
+@import './base.css' layer(legacy);
+@import '../ui/ui.css' layer(legacy);
+@import '../../modules/projects/styles/projects.css' layer(legacy);
+@import '../../modules/shots/styles/shots.css' layer(legacy);
+@import '../../modules/brief/styles/brief.css' layer(legacy);
+
+@theme {
+  --color-forest-50: #edf5ef;
+  --color-forest-100: #deece1;
+  --color-forest-200: #bad5c4;
+  --color-forest-500: #357d5e;
+  --color-forest-600: #246548;
+  --color-forest-700: #1d503b;
+  --color-ink: #222b26;
+  --color-canvas: #f7f8f6;
+  --font-sans: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+@layer base {
+  html { scrollbar-gutter: stable; }
+  button:not(:disabled), a, summary { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  :focus-visible { outline: 2px solid #357d5e; outline-offset: 3px; }
+  ::selection { background: #deece1; }
+}
+@layer components {
+  .mb-button { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-transparent bg-forest-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-forest-700 disabled:opacity-45; }
+  .mb-button-secondary { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-stone-50 disabled:opacity-45; }
+  .mb-button-ghost { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 disabled:opacity-45; }
+  .mb-input { @apply w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-ink placeholder:text-stone-400 focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-100 disabled:bg-stone-50; }
+  .mb-label { @apply mb-2 block text-sm font-medium text-stone-700; }
+  .mb-panel { @apply rounded-xl border border-stone-200/80 bg-white; }
+  .mb-eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400; }
+  .mb-tab { @apply inline-flex shrink-0 items-center gap-2 border-b-2 border-transparent px-1 py-4 text-sm font-medium text-stone-500 transition hover:text-ink; }
+  .mb-tab-active { @apply border-forest-600 text-forest-700; }
+}
+@layer utilities {
+  :root { --color-primary: #246548; --color-primary-hover: #1d503b; --color-border-focus: #357d5e; --color-bg: #f7f8f6; --font-family: 'Inter', 'Segoe UI', Arial, sans-serif; }
+  body { @apply bg-canvas text-ink; }
+  .page-title { @apply text-3xl font-semibold tracking-tight; }
+  .btn { @apply rounded-lg; }
+  .btn-primary { @apply bg-forest-600 hover:bg-forest-700; }
+  .projects-list-page, .create-project-page, .project-overview-page { @apply mx-auto w-full max-w-6xl; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

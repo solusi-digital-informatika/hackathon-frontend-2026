@@ -142,6 +142,17 @@ export const ProjectOverviewPage: React.FC = () => {
                   <p className="project-overview-description">{project.description}</p>
                 )}
               </div>
+              <div className="project-overview-header-actions">
+                <Button variant="secondary" size="sm" onClick={() => navigate(`/projects/${encodeURIComponent(project.id)}/moodboards`)}>Moodboards</Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleOpenBriefWorkspace}
+                  data-testid="header-brief-workspace-btn"
+                >
+                  Brief Workspace
+                </Button>
+              </div>
             </div>
           </header>
 

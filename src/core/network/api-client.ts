@@ -33,11 +33,12 @@ export async function requestJson<T>(
       ...options,
       headers: {
         'Accept': 'application/json',
-        ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options?.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
         ...options?.headers,
       },
     });
   } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
     const errorMsg = err instanceof Error ? err.message : 'Network request failed';
     throw new ApiClientError({
       status: 0,
