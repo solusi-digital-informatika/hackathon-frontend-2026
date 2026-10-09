@@ -8,6 +8,7 @@ import { IdBadge } from '../../../core/ui/Badge/IdBadge';
 import { StatusBadge } from '../../../core/ui/Badge/StatusBadge';
 import { LoadingIndicator } from '../../../core/ui/Loading/LoadingIndicator';
 import { ErrorBanner } from '../../../core/ui/Banner/ErrorBanner';
+import { ShotBoard } from '../../shots/components/ShotBoard';
 
 export const ProjectOverviewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -60,7 +61,7 @@ export const ProjectOverviewPage: React.FC = () => {
   };
 
   return (
-    <div className="project-overview-page">
+    <div className="project-overview-page" data-testid="project-overview-container">
       {project && (
         <div className="project-overview-nav">
           <Button variant="secondary" size="sm" onClick={handleBackToProjects}>
@@ -122,13 +123,11 @@ export const ProjectOverviewPage: React.FC = () => {
               </div>
             </section>
 
-            <section className="workspace-section" aria-labelledby="shots-heading">
+            <section className="workspace-section workspace-shots-section" aria-labelledby="shots-heading">
               <h2 id="shots-heading" className="workspace-section-title">
-                Shot List
+                Shot Board
               </h2>
-              <div className="workspace-placeholder">
-                No shots yet
-              </div>
+              <ShotBoard projectId={project.id} />
             </section>
           </main>
         </>

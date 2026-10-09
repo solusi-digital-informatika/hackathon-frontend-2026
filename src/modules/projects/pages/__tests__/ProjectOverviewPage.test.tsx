@@ -4,11 +4,22 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ProjectOverviewPage } from '../ProjectOverviewPage';
 import { projectsApi } from '../../api/projects-api';
+import { shotsApi } from '../../../shots/api/shots-api';
 import { ApiClientError } from '../../../../core/network/api-client';
 
 vi.mock('../../api/projects-api', () => ({
   projectsApi: {
     getProject: vi.fn(),
+  },
+}));
+
+vi.mock('../../../shots/api/shots-api', () => ({
+  shotsApi: {
+    getShots: vi.fn().mockResolvedValue({ items: [], total: 0 }),
+    getShot: vi.fn(),
+    createShot: vi.fn(),
+    updateShot: vi.fn(),
+    deleteShot: vi.fn(),
   },
 }));
 
@@ -144,11 +155,13 @@ describe('ProjectOverviewPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('No brief yet')).toBeInTheDocument();
 
-    // Shot list static placeholder (AC4)
+    // Shot board component replacing static placeholder (AC5)
     expect(
-      screen.getByRole('heading', { level: 2, name: /Shot List/i })
+      screen.getByRole('heading', { level: 2, name: /Shot Board/i })
     ).toBeInTheDocument();
-    expect(screen.getByText('No shots yet')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('No shots yet')).toBeInTheDocument();
+    });
   });
 
   it('navigates back to /projects when Back to Projects button is clicked', async () => {
@@ -177,5 +190,52 @@ describe('ProjectOverviewPage', () => {
     await user.click(screen.getByRole('button', { name: /Back to Projects/i }));
 
     expect(screen.getByText('Projects List Page Mock')).toBeInTheDocument();
+  });
+
+  it('renders Shot Board with active shots replacing empty placeholder (AC5)', async () => {
+    vi.mocked(projectsApi.getProject).mockResolvedValueOnce({
+      id: 'prj_01',
+      name: 'Demo film',
+      description: 'Six-shot direction-change demo',
+      status: 'draft',
+      created_at: '2026-10-09T09:00:00Z',
+      updated_at: '2026-10-09T09:00:00Z',
+    });
+
+    vi.mocked(shotsApi.getShots).mockResolvedValueOnce({
+      items: [
+        {
+          id: 'shot_01',
+          project_id: 'prj_01',
+          sequence_order: 1,
+          title: 'Establishing Aerial Alleyway',
+          description: 'Wide crane shot',
+          status: 'draft',
+          created_at: '2026-10-09T10:00:00Z',
+          updated_at: '2026-10-09T10:00:00Z',
+        },
+      ],
+      total: 1,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/projects/prj_01']}>
+        <Routes>
+          <Route path="/projects/:id" element={<ProjectOverviewPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1, name: 'Demo film' })).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('shot-card-shot_01')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Establishing Aerial Alleyway')).toBeInTheDocument();
+    expect(screen.getByText('#01')).toBeInTheDocument();
+    expect(screen.getByText('[○ Draft]')).toBeInTheDocument();
   });
 });

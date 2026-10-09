@@ -59,7 +59,7 @@ export async function requestJson<T>(
     const message =
       errorDetail?.error?.message ||
       (response.status === 404
-        ? 'Project not found or inaccessible'
+        ? 'Resource not found or inaccessible'
         : response.status >= 500
           ? 'An unexpected server error occurred.'
           : 'Request failed.');
@@ -72,6 +72,10 @@ export async function requestJson<T>(
       fields,
       isNetworkError: false,
     });
+  }
+
+  if (response.status === 204) {
+    return undefined as unknown as T;
   }
 
   return response.json() as Promise<T>;

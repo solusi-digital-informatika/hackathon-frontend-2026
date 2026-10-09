@@ -13,6 +13,16 @@ vi.mock('./modules/projects/api/projects-api', () => ({
   },
 }));
 
+vi.mock('./modules/shots/api/shots-api', () => ({
+  shotsApi: {
+    getShots: vi.fn().mockResolvedValue({ items: [], total: 0 }),
+    getShot: vi.fn(),
+    createShot: vi.fn(),
+    updateShot: vi.fn(),
+    deleteShot: vi.fn(),
+  },
+}));
+
 describe('App Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -92,6 +102,8 @@ describe('App Integration', () => {
     expect(screen.getByText('ID: prj_01')).toBeInTheDocument();
     expect(screen.getByText('[● Draft]')).toBeInTheDocument();
     expect(screen.getByText('No brief yet')).toBeInTheDocument();
-    expect(screen.getByText('No shots yet')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('No shots yet')).toBeInTheDocument();
+    });
   });
 });
