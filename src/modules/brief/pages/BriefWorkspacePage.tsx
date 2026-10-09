@@ -11,6 +11,8 @@ import { LoadingIndicator } from '../../../core/ui/Loading/LoadingIndicator';
 import { ErrorBanner } from '../../../core/ui/Banner/ErrorBanner';
 import { BriefIngestionForm } from '../components/BriefIngestionForm';
 import { BriefStructuredForm } from '../components/BriefStructuredForm';
+import { VersionBadge } from '../../../core/ui/VersionBadge/VersionBadge';
+import { briefVersion, nextBriefVersion } from '../utils/brief-versions';
 
 export const BriefWorkspacePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +21,8 @@ export const BriefWorkspacePage: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [brief, setBrief] = useState<ProjectBrief | null>(null);
   const [sourceDocument, setSourceDocument] = useState<SourceDocument | null>(null);
+  const [version, setVersion] = useState<number | null>(null);
+  const [nextVersion, setNextVersion] = useState(1);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<{
@@ -45,10 +49,14 @@ export const BriefWorkspacePage: React.FC = () => {
         const briefData = await briefApi.getActiveBrief(id);
         setBrief(briefData.brief);
         setSourceDocument(briefData.sourceDocument);
+        setVersion(briefData.brief ? briefVersion(id, briefData.brief.id) : null);
+        setNextVersion(nextBriefVersion(id));
       } catch (briefErr) {
         if (briefErr instanceof ApiClientError && briefErr.status === 404) {
           setBrief(null);
           setSourceDocument(null);
+          setVersion(null);
+          setNextVersion(nextBriefVersion(id));
         } else {
           throw briefErr;
         }
@@ -93,6 +101,8 @@ export const BriefWorkspacePage: React.FC = () => {
   ) => {
     setSourceDocument(newDoc);
     setBrief(extractedBrief);
+    setVersion(briefVersion(extractedBrief.project_id, extractedBrief.id));
+    setNextVersion(nextBriefVersion(extractedBrief.project_id));
     setModeOverride('review');
   };
 
@@ -147,10 +157,12 @@ export const BriefWorkspacePage: React.FC = () => {
               <div className="brief-workspace-meta">
                 <span className="brief-project-name">{project.name}</span>
                 <IdBadge id={project.id} />
+                {version !== null && <VersionBadge version={version} />}
                 <span className="brief-mode-indicator">
                   Mode: {currentMode === 'ingest' ? 'Ingestion' : 'Review & Calibration'}
                 </span>
               </div>
+              <p className="brief-version-note">Version numbering is saved in this browser. Earlier versions are not available from the current API.</p>
             </div>
           </header>
 
@@ -158,6 +170,7 @@ export const BriefWorkspacePage: React.FC = () => {
             {currentMode === 'ingest' ? (
               <BriefIngestionForm
                 projectId={project.id}
+                nextVersion={nextVersion}
                 onIngestSuccess={handleIngestSuccess}
                 onCancel={brief ? () => setModeOverride('review') : undefined}
               />

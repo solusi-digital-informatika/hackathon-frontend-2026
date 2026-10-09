@@ -494,3 +494,9 @@
 .string-list-input {
   flex: 1;
 }
+
+.brief-ingestion-title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+.brief-content-input { position: relative; padding-top: 8px; }
+.brief-content-input .form-field { margin-bottom: 8px; }
+.brief-import-note, .brief-version-note { font-size: 11px; color: #89927f; line-height: 1.6; }
+.brief-version-note { margin-top: 12px; }

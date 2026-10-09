@@ -62,12 +62,23 @@ export const ProjectsListPage: React.FC = () => {
   return (
     <div className="projects-list-page">
       <div className="page-header">
-        <h1 className="page-title">Projects</h1>
+        <div>
+          <p className="projects-eyebrow">WORKSPACE / PROJECTS</p>
+          <h1 className="page-title">Projects<span className="projects-title-dot" aria-hidden="true">.</span></h1>
+          <p className="projects-subtitle">A place for every brief, idea, and work in progress.</p>
+        </div>
         <div className="page-actions">
           <Button variant="primary" onClick={handleCreateClick}>
-            Create Project
+            <span aria-hidden="true" className="projects-add-icon">+</span> Create Project
           </Button>
         </div>
+      </div>
+
+      <div className="projects-collection-header">
+        <div className="projects-collection-label"><span aria-hidden="true" className="projects-collection-icon">&#9636;</span> All projects
+          {!loading && !error && <span className="projects-count">{total}</span>}
+        </div>
+        <span className="projects-sort-note">Newest first</span>
       </div>
 
       {loading && <LoadingIndicator message="Loading projects..." />}

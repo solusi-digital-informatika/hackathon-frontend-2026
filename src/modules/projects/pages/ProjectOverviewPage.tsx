@@ -13,6 +13,7 @@ import { StatusBadge } from '../../../core/ui/Badge/StatusBadge';
 import { LoadingIndicator } from '../../../core/ui/Loading/LoadingIndicator';
 import { ErrorBanner } from '../../../core/ui/Banner/ErrorBanner';
 import { ShotBoard } from '../../shots/components/ShotBoard';
+import { Icon } from '../../../core/ui/Icon/Icon';
 
 export const ProjectOverviewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -141,24 +142,18 @@ export const ProjectOverviewPage: React.FC = () => {
                   <p className="project-overview-description">{project.description}</p>
                 )}
               </div>
-              <div className="project-overview-header-actions">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleOpenBriefWorkspace}
-                  data-testid="header-brief-workspace-btn"
-                >
-                  Brief Workspace
-                </Button>
-              </div>
             </div>
           </header>
 
           <main className="workspace-grid">
-            <section className="workspace-section" aria-labelledby="brief-heading">
-              <h2 id="brief-heading" className="workspace-section-title">
-                Active Brief
-              </h2>
+            <section className="workspace-section overview-active-brief" aria-labelledby="brief-heading">
+              <div className="overview-brief-heading">
+                <span className="overview-brief-icon"><Icon name="document" width="22" height="22" /></span>
+                <div>
+                  <h2 id="brief-heading" className="workspace-section-title">Active Brief</h2>
+                  <p>The creative foundation for your project.</p>
+                </div>
+              </div>
               {briefLoading ? (
                 <LoadingIndicator message="Loading active brief..." />
               ) : brief ? (
@@ -168,16 +163,18 @@ export const ProjectOverviewPage: React.FC = () => {
                   onOpenWorkspace={handleOpenBriefWorkspace}
                 />
               ) : (
-                <div className="workspace-placeholder" data-testid="brief-placeholder">
-                  <p>No brief yet</p>
-                  <div style={{ marginTop: '0.75rem' }}>
+                <div className="overview-brief-empty" data-testid="brief-placeholder">
+                  <span className="overview-brief-empty-icon"><Icon name="document" width="28" height="28" /></span>
+                  <h3>No brief yet</h3>
+                  <p>Bring in your brief to keep the direction, visual style, and requirements in one place.</p>
+                  <div className="overview-brief-empty-action">
                     <Button
-                      variant="secondary"
-                      size="sm"
+                      variant="primary"
                       onClick={handleOpenBriefWorkspace}
                       data-testid="open-brief-workspace-btn"
                     >
                       Open Brief Workspace
+                      <Icon name="arrow" width="16" height="16" />
                     </Button>
                   </div>
                 </div>

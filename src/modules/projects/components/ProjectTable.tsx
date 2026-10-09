@@ -44,51 +44,59 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
 
   return (
     <div className="projects-table-container">
-      <table className="projects-table" aria-label="Projects">
-        <thead>
-          <tr>
-            <th scope="col">Project Name</th>
-            <th scope="col">Project ID</th>
-            <th scope="col">Description</th>
-            <th scope="col">Status</th>
-            <th scope="col">Last Updated</th>
-            <th scope="col">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {projects.map((project) => (
-            <tr key={project.id}>
-              <td className="project-name-cell">{project.name}</td>
-              <td>
-                <IdBadge id={project.id} />
-              </td>
-              <td className="project-description-cell">
-                {project.description || '—'}
-              </td>
-              <td>
-                <StatusBadge status={project.status} />
-              </td>
-              <td className="project-date-cell">{formatDate(project.updated_at)}</td>
-              <td>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onOpenProject(project.id)}
-                  aria-label={`Open Project ${project.name}`}
-                >
-                  Open Project
-                </Button>
-              </td>
+      <div className="projects-table-scroll">
+        <table className="projects-table" aria-label="Projects">
+          <thead>
+            <tr>
+              <th scope="col">Project Name</th>
+              <th scope="col">Project ID</th>
+              <th scope="col">Description</th>
+              <th scope="col">Status</th>
+              <th scope="col">Last Updated</th>
+              <th scope="col">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {projects.map((project) => (
+              <tr key={project.id}>
+                <td className="project-name-cell">
+                  <div className="project-name-wrap">
+                    <span className="project-monogram" aria-hidden="true">{project.name.slice(0, 1).toUpperCase()}</span>
+                    <span>{project.name}</span>
+                  </div>
+                </td>
+                <td>
+                  <IdBadge id={project.id} />
+                </td>
+                <td className="project-description-cell" title={project.description || undefined}>
+                  {project.description || '—'}
+                </td>
+                <td>
+                  <StatusBadge status={project.status} />
+                </td>
+                <td className="project-date-cell">{formatDate(project.updated_at)}</td>
+                <td>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onOpenProject(project.id)}
+                    aria-label={`Open Project ${project.name}`}
+                  >
+                    Open Project <span aria-hidden="true">&#8599;</span>
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <div className="pagination-container" aria-label="Pagination">
         <div className="pagination-info">
           Showing {startItem}–{endItem} of {total}
         </div>
         <div className="pagination-controls">
+          <span className="projects-page-number">Page {Math.floor(offset / limit) + 1} of {Math.max(1, Math.ceil(total / limit))}</span>
           <Button
             variant="secondary"
             size="sm"

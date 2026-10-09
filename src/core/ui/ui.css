@@ -222,3 +222,13 @@
   white-space: nowrap;
   border-width: 0;
 }
+
+.version-badge { display: inline-flex; align-items: center; padding: 4px 9px; border: 1px solid #dce6d2; border-radius: 5px; background: #edf3e6; color: #657b53; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.document-import { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.document-import .btn { gap: 6px; color: #567048; border-color: #dce4d4; font-size: 11px; }
+.document-import-filename { font-size: 10px; color: #819173; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.document-import-error { flex-basis: 100%; color: #a23d30; font-size: 11px; }
+.form-label-with-action { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+.form-label-with-action > .form-label { padding-top: 4px; flex-shrink: 0; margin-bottom: 0; }
+.form-label-with-action .document-import { max-width: 65%; }
+@media (max-width: 550px) { .form-label-with-action { flex-wrap: wrap; } .form-label-with-action .document-import { max-width: 100%; justify-content: flex-start; } }

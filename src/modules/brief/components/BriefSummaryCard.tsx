@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { VersionBadge } from '../../../core/ui/VersionBadge/VersionBadge';
+import { briefVersion } from '../utils/brief-versions';
 import { useNavigate } from 'react-router-dom';
 import type { ProjectBrief } from '../types/brief.types';
 import { BriefStatusBadge } from './BriefStatusBadge';
@@ -16,6 +18,8 @@ export const BriefSummaryCard: React.FC<BriefSummaryCardProps> = ({
   onOpenWorkspace,
 }) => {
   const navigate = useNavigate();
+  const [version, setVersion] = useState<number | null>(null);
+  useEffect(() => { setVersion(briefVersion(projectId, brief.id)); }, [projectId, brief.id]);
 
   const handleOpen = () => {
     if (onOpenWorkspace) {
@@ -30,6 +34,7 @@ export const BriefSummaryCard: React.FC<BriefSummaryCardProps> = ({
       <div className="brief-summary-card-header">
         <div className="brief-summary-title-group">
           <h3 className="brief-summary-title">Structured Creative Brief</h3>
+          {version !== null && <VersionBadge version={version} />}
           <BriefStatusBadge status={brief.review_status} />
         </div>
         <Button variant="secondary" size="sm" onClick={handleOpen}>

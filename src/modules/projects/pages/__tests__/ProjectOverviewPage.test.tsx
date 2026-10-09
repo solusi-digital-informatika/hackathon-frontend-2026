@@ -298,7 +298,7 @@ describe('ProjectOverviewPage', () => {
     expect(screen.getByText('Moody cool blue lighting')).toBeInTheDocument();
   });
 
-  it('navigates to brief workspace when Brief Workspace button is clicked', async () => {
+  it('navigates to brief workspace from Active Brief without a duplicate header button', async () => {
     const user = userEvent.setup();
 
     vi.mocked(projectsApi.getProject).mockResolvedValueOnce({
@@ -322,7 +322,8 @@ describe('ProjectOverviewPage', () => {
       expect(screen.getByRole('heading', { level: 1, name: 'CyberPulse' })).toBeInTheDocument();
     });
 
-    const briefWorkspaceBtn = screen.getByTestId('header-brief-workspace-btn');
+    expect(screen.queryByTestId('header-brief-workspace-btn')).not.toBeInTheDocument();
+    const briefWorkspaceBtn = screen.getByTestId('open-brief-workspace-btn');
     await user.click(briefWorkspaceBtn);
 
     expect(screen.getByText('Brief Workspace Page Mock')).toBeInTheDocument();
