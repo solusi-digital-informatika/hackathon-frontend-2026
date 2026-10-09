@@ -19,7 +19,7 @@ export const BriefSummaryCard: React.FC<BriefSummaryCardProps> = ({
 }) => {
   const navigate = useNavigate();
   const [version, setVersion] = useState<number | null>(null);
-  useEffect(() => { setVersion(briefVersion(projectId, brief.id)); }, [projectId, brief.id]);
+  useEffect(() => { setVersion(brief.version ?? briefVersion(projectId, brief.id)); }, [projectId, brief.id, brief.version]);
 
   const handleOpen = () => {
     if (onOpenWorkspace) {

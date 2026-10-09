@@ -49,8 +49,8 @@ export const BriefWorkspacePage: React.FC = () => {
         const briefData = await briefApi.getActiveBrief(id);
         setBrief(briefData.brief);
         setSourceDocument(briefData.sourceDocument);
-        setVersion(briefData.brief ? briefVersion(id, briefData.brief.id) : null);
-        setNextVersion(nextBriefVersion(id));
+        setVersion(briefData.brief ? briefData.brief.version ?? briefVersion(id, briefData.brief.id) : null);
+        setNextVersion(briefData.brief?.version ? briefData.brief.version + 1 : nextBriefVersion(id));
       } catch (briefErr) {
         if (briefErr instanceof ApiClientError && briefErr.status === 404) {
           setBrief(null);
@@ -101,8 +101,9 @@ export const BriefWorkspacePage: React.FC = () => {
   ) => {
     setSourceDocument(newDoc);
     setBrief(extractedBrief);
-    setVersion(briefVersion(extractedBrief.project_id, extractedBrief.id));
-    setNextVersion(nextBriefVersion(extractedBrief.project_id));
+    const createdVersion = extractedBrief.version ?? briefVersion(extractedBrief.project_id, extractedBrief.id);
+    setVersion(createdVersion);
+    setNextVersion(createdVersion + 1);
     setModeOverride('review');
   };
 
@@ -162,7 +163,7 @@ export const BriefWorkspacePage: React.FC = () => {
                   Mode: {currentMode === 'ingest' ? 'Ingestion' : 'Review & Calibration'}
                 </span>
               </div>
-              <p className="brief-version-note">Version numbering is saved in this browser. Earlier versions are not available from the current API.</p>
+              {!brief?.version && <p className="brief-version-note">Version numbering is saved in this browser for legacy briefs.</p>}
             </div>
           </header>
 

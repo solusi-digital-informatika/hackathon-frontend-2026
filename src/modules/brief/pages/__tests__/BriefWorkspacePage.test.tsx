@@ -17,6 +17,7 @@ vi.mock('../../../projects/api/projects-api', () => ({
 vi.mock('../../api/brief-api', () => ({
   briefApi: {
     getActiveBrief: vi.fn(),
+    generateBrief: vi.fn(),
     ingestBrief: vi.fn(),
     extractBrief: vi.fn(),
     updateBrief: vi.fn(),
@@ -158,8 +159,7 @@ describe('BriefWorkspacePage', () => {
       brief: null,
     });
 
-    vi.mocked(briefApi.ingestBrief).mockResolvedValueOnce(mockSourceDocument);
-    vi.mocked(briefApi.extractBrief).mockResolvedValueOnce(mockBrief);
+    vi.mocked(briefApi.generateBrief).mockResolvedValueOnce({ source_document: mockSourceDocument, brief: mockBrief });
 
     render(
       <MemoryRouter initialEntries={['/projects/prj_01/brief']}>
@@ -176,7 +176,7 @@ describe('BriefWorkspacePage', () => {
     const contentInput = screen.getByLabelText(/Raw Brief Content/i);
     await user.type(contentInput, 'Courier transporting encrypted data core.');
 
-    const submitBtn = screen.getByRole('button', { name: /Ingest & Extract Brief/i });
+    const submitBtn = screen.getByRole('button', { name: /Generate Brief/i });
     await user.click(submitBtn);
 
     await waitFor(() => {

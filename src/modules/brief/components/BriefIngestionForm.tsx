@@ -56,20 +56,14 @@ export const BriefIngestionForm: React.FC<BriefIngestionFormProps> = ({
     if (hasError) return;
 
     setSubmitting(true);
-    setSubmittingStep('Ingesting source brief document...');
+    setSubmittingStep('AI is preparing your brief...');
 
     try {
-      // Step 1: Ingest raw source brief
-      const sourceDoc = await briefApi.ingestBrief(projectId, {
+      const generated = await briefApi.generateBrief(projectId, {
         source_name: trimmedName,
         content: trimmedContent,
       });
-
-      // Step 2: Trigger AI extraction of structured brief
-      setSubmittingStep('Extracting structured creative requirements...');
-      const extractedBrief = await briefApi.extractBrief(projectId);
-
-      onIngestSuccess(sourceDoc, extractedBrief);
+      onIngestSuccess(generated.source_document, generated.brief);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to ingest and extract brief.';
       setGeneralError(msg);
@@ -85,7 +79,8 @@ export const BriefIngestionForm: React.FC<BriefIngestionFormProps> = ({
         <div className="brief-ingestion-title-row"><h2 className="brief-section-title">Ingest Creative Brief</h2><VersionBadge version={nextVersion} /></div>
         <p className="brief-section-subtitle">
           Paste or import the raw creative brief or production notes. The system will extract structured
-          style, characters, props, lighting, and constraints for human review.
+          an eight-section creative brief for human review. Generate shot details separately after reviewing the brief. Missing details
+          are marked as unknown; unrelated content is not accepted.
         </p>
       </div>
 
@@ -150,7 +145,7 @@ export const BriefIngestionForm: React.FC<BriefIngestionFormProps> = ({
             disabled={submitting || importing}
             data-testid="ingest-extract-btn"
           >
-            {submitting ? submittingStep || 'Processing...' : 'Ingest & Extract Brief'}
+            {submitting ? submittingStep || 'Processing...' : 'Generate Brief'}
           </Button>
         </div>
       </form>

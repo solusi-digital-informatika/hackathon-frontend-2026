@@ -7,12 +7,23 @@ import type { ProjectBrief, SourceDocument } from '../../types/brief.types';
 
 vi.mock('../../api/brief-api', () => ({
   briefApi: {
+    generateBrief: vi.fn(),
     ingestBrief: vi.fn(),
     extractBrief: vi.fn(),
   },
 }));
 
 describe('BriefIngestionForm', () => {
+  it('preserves input when AI rejects unrelated content and allows correction', async () => {
+    vi.mocked(briefApi.generateBrief).mockRejectedValueOnce(new Error('This recipe is not a creative brief.'));
+    render(<BriefIngestionForm projectId="prj_reject" onIngestSuccess={vi.fn()} />);
+    await userEvent.type(screen.getByLabelText(/Raw Brief Content/), 'Rebus telur lalu sajikan.');
+    await userEvent.click(screen.getByRole('button', { name: /Generate Brief/ }));
+    expect(await screen.findByText('This recipe is not a creative brief.')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Raw Brief Content/)).toHaveValue('Rebus telur lalu sajikan.');
+    expect(screen.getByRole('button', { name: /Generate Brief/ })).toBeEnabled();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -28,7 +39,7 @@ describe('BriefIngestionForm', () => {
     expect(screen.getByRole('heading', { level: 2, name: /Ingest Creative Brief/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/Source Document Name/i)).toHaveValue('Creative Brief v1');
     expect(screen.getByLabelText(/Raw Brief Content/i)).toHaveValue('');
-    expect(screen.getByRole('button', { name: /Ingest & Extract Brief/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Generate Brief/i })).toBeInTheDocument();
   });
 
   it('validates required fields before submitting', async () => {
@@ -46,7 +57,7 @@ describe('BriefIngestionForm', () => {
     const sourceNameInput = screen.getByLabelText(/Source Document Name/i);
     await user.clear(sourceNameInput);
 
-    const submitBtn = screen.getByRole('button', { name: /Ingest & Extract Brief/i });
+    const submitBtn = screen.getByRole('button', { name: /Generate Brief/i });
     await user.click(submitBtn);
 
     expect(screen.getByText('Source name is required.')).toBeInTheDocument();
@@ -81,8 +92,7 @@ describe('BriefIngestionForm', () => {
       review_status: 'pending_review',
     };
 
-    vi.mocked(briefApi.ingestBrief).mockResolvedValueOnce(mockDoc);
-    vi.mocked(briefApi.extractBrief).mockResolvedValueOnce(mockBrief);
+    vi.mocked(briefApi.generateBrief).mockResolvedValueOnce({ source_document: mockDoc, brief: mockBrief });
 
     render(
       <BriefIngestionForm
@@ -98,22 +108,22 @@ describe('BriefIngestionForm', () => {
     const contentInput = screen.getByLabelText(/Raw Brief Content/i);
     await user.type(contentInput, 'Cyberpunk courier story featuring Aria.');
 
-    const submitBtn = screen.getByRole('button', { name: /Ingest & Extract Brief/i });
+    const submitBtn = screen.getByRole('button', { name: /Generate Brief/i });
     await user.click(submitBtn);
 
     await waitFor(() => {
-      expect(briefApi.ingestBrief).toHaveBeenCalledWith('prj_01', {
+      expect(briefApi.generateBrief).toHaveBeenCalledWith('prj_01', {
         source_name: 'CyberPulse Creative Brief v1',
         content: 'Cyberpunk courier story featuring Aria.',
       });
-      expect(briefApi.extractBrief).toHaveBeenCalledWith('prj_01');
+      expect(briefApi.ingestBrief).not.toHaveBeenCalled();
       expect(handleSuccess).toHaveBeenCalledWith(mockDoc, mockBrief);
     });
   });
 
   it('displays error banner if ingestion fails', async () => {
     const user = userEvent.setup();
-    vi.mocked(briefApi.ingestBrief).mockRejectedValueOnce(new Error('Ingestion service failed.'));
+    vi.mocked(briefApi.generateBrief).mockRejectedValueOnce(new Error('Ingestion service failed.'));
 
     render(
       <BriefIngestionForm
@@ -125,7 +135,7 @@ describe('BriefIngestionForm', () => {
     const contentInput = screen.getByLabelText(/Raw Brief Content/i);
     await user.type(contentInput, 'Some brief text');
 
-    const submitBtn = screen.getByRole('button', { name: /Ingest & Extract Brief/i });
+    const submitBtn = screen.getByRole('button', { name: /Generate Brief/i });
     await user.click(submitBtn);
 
     await waitFor(() => {

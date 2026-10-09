@@ -13,6 +13,7 @@ import { StatusBadge } from '../../../core/ui/Badge/StatusBadge';
 import { LoadingIndicator } from '../../../core/ui/Loading/LoadingIndicator';
 import { ErrorBanner } from '../../../core/ui/Banner/ErrorBanner';
 import { ShotBoard } from '../../shots/components/ShotBoard';
+import { GenerateShotPanel } from '../../brief/components/GenerateShotPanel';
 import { Icon } from '../../../core/ui/Icon/Icon';
 
 export const ProjectOverviewPage: React.FC = () => {
@@ -196,7 +197,8 @@ export const ProjectOverviewPage: React.FC = () => {
               <h2 id="shots-heading" className="workspace-section-title">
                 Shot Board
               </h2>
-              <ShotBoard projectId={project.id} />
+              {brief && <GenerateShotPanel projectId={project.id} brief={brief} onGenerated={setBrief} />}
+              <ShotBoard key={`${brief?.id}-${brief?.generated_shot_ids?.length || 0}`} projectId={project.id} />
             </section>
           </main>
         </>

@@ -8,6 +8,13 @@ import { ApiClientError } from '../../../../core/network/api-client';
 
 vi.mock('../../api/shots-api', () => ({
   shotsApi: {
+    getImageConfig: vi.fn(),
+    getImages: vi.fn(),
+    generateApprovedImages: vi.fn(),
+    generateImage: vi.fn(),
+    getRevisions: vi.fn(),
+    createRevision: vi.fn(),
+    reviewRevision: vi.fn(),
     getShots: vi.fn(),
     getShot: vi.fn(),
     createShot: vi.fn(),
@@ -52,6 +59,29 @@ describe('ShotBoard', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    vi.mocked(shotsApi.getImages).mockResolvedValue({ items: [] });
+    vi.mocked(shotsApi.getImageConfig).mockResolvedValue({ provider: 'Gemini API', mode: 'gemini', model: 'gemini-3.1-flash-image', configured: true, missing_key: null });
+  });
+
+  it('hides a shot from details, persists after remount, and restores it', async () => {
+    const user = userEvent.setup();
+    vi.mocked(shotsApi.getShots).mockResolvedValue({ items: mockShots, total: 3 });
+    vi.mocked(shotsApi.getRevisions).mockRejectedValue(new Error('History unavailable'));
+    const first = render(<ShotBoard projectId="prj_01" />);
+    await user.click(await screen.findByRole('button', { name: `Edit shot ${mockShots[0].title}` }));
+    await user.click(screen.getByRole('button', { name: 'Hide shot' }));
+    expect(screen.queryByRole('button', { name: `Edit shot ${mockShots[0].title}` })).not.toBeInTheDocument();
+    expect(shotsApi.deleteShot).not.toHaveBeenCalled();
+    expect(shotsApi.updateShot).not.toHaveBeenCalled();
+    first.unmount();
+    render(<ShotBoard projectId="prj_01" />);
+    await screen.findByText('Hidden shots (1)');
+    expect(screen.queryByRole('button', { name: `Edit shot ${mockShots[0].title}` })).not.toBeInTheDocument();
+    await user.click(screen.getByText('Hidden shots (1)'));
+    await user.click(screen.getByRole('button', { name: `Show shot ${mockShots[0].title}` }));
+    expect(screen.getByRole('button', { name: `Edit shot ${mockShots[0].title}` })).toBeInTheDocument();
+    expect(screen.queryByText('Hidden shots (1)')).not.toBeInTheDocument();
   });
 
   it('renders loading state initially', () => {
@@ -62,6 +92,35 @@ describe('ShotBoard', () => {
     expect(
       screen.getByRole('status', { name: /Loading shots.../i })
     ).toBeInTheDocument();
+  });
+
+  it('queues all approved images using backend selection instead of visible filters', async () => {
+    const user = userEvent.setup();
+    vi.mocked(shotsApi.getShots).mockResolvedValue({ items: mockShots, total: 3 });
+    vi.mocked(shotsApi.generateApprovedImages).mockResolvedValue({ queued: 1, items: [] });
+    render(<ShotBoard projectId="prj_01" />);
+    const button = await screen.findByRole('button', { name: 'Generate All Approved Images (1)' });
+    await user.selectOptions(screen.getByLabelText('Filter shots by status'), 'draft');
+    await user.click(button);
+    expect(shotsApi.generateApprovedImages).toHaveBeenCalledWith('prj_01');
+    expect(await screen.findByText(/1 gambar masuk antrean/)).toBeInTheDocument();
+  });
+
+  it('shows which shot has revisions in mindmap and opens its branch history', async () => {
+    const user = userEvent.setup();
+    const revised = { ...mockShots[0], revision_summary: { version: 1, status: 'baseline', pending: 1 } };
+    const base = { id: 'map_base', shot_id: revised.id, version_number: 1, parent_id: null, title: revised.title, description: revised.description!, details: {}, change_note: 'Original', status: 'baseline' as const, created_at: revised.created_at, reviewed_at: null, review_note: '' };
+    const proposal = { ...base, id: 'map_revision', version_number: 2, parent_id: base.id, title: 'Warm lighting proposal', status: 'pending_review' as const };
+    vi.mocked(shotsApi.getShots).mockResolvedValue({ items: [revised, mockShots[1]], total: 2 });
+    vi.mocked(shotsApi.getRevisions).mockResolvedValue({ active_revision_id: base.id, items: [base, proposal] });
+    render(<ShotBoard projectId="prj_01" />);
+    await screen.findByTestId('shot-card-shot_01');
+    await user.click(screen.getByRole('button', { name: 'Mindmap' }));
+    expect(screen.getByText('1 pending revisions')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /SHOT 01.*Establishing Aerial Alleyway/ }));
+    expect(await screen.findByRole('button', { name: 'v2 from v1, pending_review' })).toBeInTheDocument();
+    expect(shotsApi.getRevisions).toHaveBeenCalledWith('prj_01', 'shot_01');
+    expect(screen.getByRole('heading', { name: 'Shot #1: Establishing Aerial Alleyway' })).toBeInTheDocument();
   });
 
   it('renders empty state when no shots exist (D-003, AC5)', async () => {
@@ -259,60 +318,27 @@ describe('ShotBoard', () => {
     });
   });
 
-  it('edits a shot, submits update, and refreshes the board', async () => {
-    vi.mocked(shotsApi.getShots).mockResolvedValueOnce({
-      items: mockShots,
-      total: 3,
-    });
-
+  it('creates a revision branch and refreshes the board only after approval', async () => {
+    const base = { id: 'rev_1', shot_id: 'shot_01', version_number: 1, parent_id: null, title: mockShots[0].title, description: mockShots[0].description!, details: {}, change_note: 'Original', status: 'baseline' as const, created_at: '2026-10-09T10:00:00Z', reviewed_at: null, review_note: '' };
+    const proposal = { ...base, id: 'rev_2', version_number: 2, parent_id: base.id, title: 'Approved proposal', status: 'pending_review' as const };
+    vi.mocked(shotsApi.getShots).mockResolvedValueOnce({ items: mockShots, total: 3 });
+    vi.mocked(shotsApi.getRevisions).mockResolvedValue({ active_revision_id: base.id, items: [base] });
+    vi.mocked(shotsApi.createRevision).mockResolvedValue({ active_revision_id: base.id, items: [base, proposal] });
+    vi.mocked(shotsApi.reviewRevision).mockResolvedValue({ active_revision_id: proposal.id, items: [base, { ...proposal, status: 'approved' }] });
     const user = userEvent.setup();
     render(<ShotBoard projectId="prj_01" />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('shot-card-shot_01')).toBeInTheDocument();
-    });
-
-    // Click edit on shot 1
-    const editBtn = screen.getByRole('button', {
-      name: 'Edit shot Establishing Aerial Alleyway',
-    });
-    await user.click(editBtn);
-
-    expect(screen.getByRole('heading', { name: 'Edit Shot: shot_01' })).toBeInTheDocument();
-
-    const updatedShot: Shot = {
-      ...mockShots[0],
-      title: 'Establishing Aerial Alleyway (Approved)',
-      status: 'approved',
-    };
-
-    vi.mocked(shotsApi.updateShot).mockResolvedValueOnce(updatedShot);
-    vi.mocked(shotsApi.getShots).mockResolvedValueOnce({
-      items: [updatedShot, mockShots[1], mockShots[2]],
-      total: 3,
-    });
-
-    const titleInput = screen.getByLabelText(/Shot Title/i);
-    await user.clear(titleInput);
-    await user.type(titleInput, 'Establishing Aerial Alleyway (Approved)');
-    await user.selectOptions(screen.getByLabelText(/Production Status/i), 'approved');
-
-    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-    await waitFor(() => {
-      expect(shotsApi.updateShot).toHaveBeenCalledWith('prj_01', 'shot_01', {
-        title: 'Establishing Aerial Alleyway (Approved)',
-        description: 'Wide crane shot of cyberpunk city canyon',
-        status: 'approved',
-        sequence_order: 1,
-      });
-    });
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole('heading', { level: 3, name: 'Establishing Aerial Alleyway (Approved)' })
-      ).toBeInTheDocument();
-    });
+    await user.click(await screen.findByRole('button', { name: 'Edit shot Establishing Aerial Alleyway' }));
+    const input = await screen.findByLabelText('Revised title');
+    await user.clear(input);
+    await user.type(input, 'Approved proposal');
+    await user.type(screen.getByLabelText(/Revision request/), 'Warm lighting');
+    await user.click(screen.getByRole('button', { name: 'Create revision branch' }));
+    expect(await screen.findByRole('button', { name: 'Approve & Merge' })).toBeInTheDocument();
+    expect(shotsApi.updateShot).not.toHaveBeenCalled();
+    vi.mocked(shotsApi.getShots).mockResolvedValueOnce({ items: [{ ...mockShots[0], title: 'Approved proposal', status: 'approved' }, mockShots[1], mockShots[2]], total: 3 });
+    await user.click(screen.getByRole('button', { name: 'Approve & Merge' }));
+    await waitFor(() => expect(shotsApi.reviewRevision).toHaveBeenCalledWith('prj_01', 'shot_01', 'rev_2', { decision: 'approve', expected_active_id: 'rev_1', note: '' }));
+    expect(await screen.findByRole('heading', { level: 3, name: 'Approved proposal' })).toBeInTheDocument();
   });
 
   it('deletes a shot through confirmation modal and removes from board', async () => {

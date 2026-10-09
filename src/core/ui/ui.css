@@ -232,3 +232,8 @@
 .form-label-with-action > .form-label { padding-top: 4px; flex-shrink: 0; margin-bottom: 0; }
 .form-label-with-action .document-import { max-width: 65%; }
 @media (max-width: 550px) { .form-label-with-action { flex-wrap: wrap; } .form-label-with-action .document-import { max-width: 100%; justify-content: flex-start; } }
+
+.revision-graph { max-height: 320px; overflow: auto; border: 1px solid #e0e7d7; border-radius: 8px; margin: 20px 0; background: #fafcf7; }
+.revision-graph svg { display: block; width: 100%; min-width: 350px; }
+.revision-graph [role=button] { cursor: pointer; outline: none; }
+.revision-graph [role=button]:focus rect { stroke: #648153; stroke-width: 2; }

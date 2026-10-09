@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../../../core/config/api';
-import { ApiClientError, requestJson } from '../../../core/network/api-client';
+import { ApiClientError } from '../../../core/network/api-client';
+import { requestStructuredJson } from '../../../core/network/structured-client';
 import type {
   ActiveBriefResponse,
   IngestBriefPayload,
@@ -10,9 +11,19 @@ import type {
 } from '../types/brief.types';
 
 export const briefApi = {
+  async generateShots(projectId: string, briefId: string, shotCount: number): Promise<ProjectBrief> {
+    return requestStructuredJson(`${API_BASE_URL}/projects/${encodeURIComponent(projectId)}/brief/storyboard`, {
+      method: 'POST', body: JSON.stringify({ brief_id: briefId, shot_count: shotCount }),
+    });
+  },
+  async generateBrief(projectId: string, payload: IngestBriefPayload): Promise<{ source_document: SourceDocument; brief: ProjectBrief }> {
+    return requestStructuredJson(`${API_BASE_URL}/projects/${encodeURIComponent(projectId)}/brief/generate`, {
+      method: 'POST', body: JSON.stringify(payload),
+    });
+  },
   async getActiveBrief(projectId: string): Promise<NormalizedActiveBrief> {
     try {
-      const raw = await requestJson<ActiveBriefResponse>(
+      const raw = await requestStructuredJson<ActiveBriefResponse>(
         `${API_BASE_URL}/projects/${encodeURIComponent(projectId)}/brief`
       );
 
@@ -62,7 +73,7 @@ export const briefApi = {
   },
 
   async ingestBrief(projectId: string, payload: IngestBriefPayload): Promise<SourceDocument> {
-    return requestJson<SourceDocument>(
+    return requestStructuredJson<SourceDocument>(
       `${API_BASE_URL}/projects/${encodeURIComponent(projectId)}/brief/ingest`,
       {
         method: 'POST',
@@ -72,7 +83,7 @@ export const briefApi = {
   },
 
   async extractBrief(projectId: string): Promise<ProjectBrief> {
-    return requestJson<ProjectBrief>(
+    return requestStructuredJson<ProjectBrief>(
       `${API_BASE_URL}/projects/${encodeURIComponent(projectId)}/brief/extract`,
       {
         method: 'POST',
@@ -82,7 +93,7 @@ export const briefApi = {
   },
 
   async updateBrief(projectId: string, payload: UpdateBriefPayload): Promise<ProjectBrief> {
-    return requestJson<ProjectBrief>(
+    return requestStructuredJson<ProjectBrief>(
       `${API_BASE_URL}/projects/${encodeURIComponent(projectId)}/brief`,
       {
         method: 'PUT',

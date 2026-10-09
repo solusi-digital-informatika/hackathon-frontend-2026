@@ -17,6 +17,8 @@ import { Button } from '../../../core/ui/Button/Button';
 import { TextField } from '../../../core/ui/Form/TextField';
 import { TextArea } from '../../../core/ui/Form/TextArea';
 import { ErrorBanner } from '../../../core/ui/Banner/ErrorBanner';
+import { creativeSectionLabels, type CreativeSections } from '../types/brief.types';
+import { GenerateShotPanel } from './GenerateShotPanel';
 
 interface BriefStructuredFormProps {
   projectId: string;
@@ -34,6 +36,7 @@ export const BriefStructuredForm: React.FC<BriefStructuredFormProps> = ({
   onReingest,
 }) => {
   const [objective, setObjective] = useState<string>(initialBrief.objective || '');
+  const [creativeSections, setCreativeSections] = useState<CreativeSections | null>(initialBrief.creative_sections || null);
   const [visualStyle, setVisualStyle] = useState<string>(initialBrief.visual_style || '');
   const [lightingMood, setLightingMood] = useState<string>(initialBrief.lighting_mood || '');
   const [characters, setCharacters] = useState<CharacterSpec[]>(initialBrief.characters || []);
@@ -56,6 +59,7 @@ export const BriefStructuredForm: React.FC<BriefStructuredFormProps> = ({
     setErrorMessage(null);
 
     const payload: UpdateBriefPayload = {
+      ...(creativeSections ? { creative_sections: creativeSections } : {}),
       objective: objective.trim(),
       visual_style: visualStyle.trim(),
       lighting_mood: lightingMood.trim(),
@@ -147,6 +151,19 @@ export const BriefStructuredForm: React.FC<BriefStructuredFormProps> = ({
       />
 
       {/* 2. Structured Form Fields (Editable by Human) */}
+      {creativeSections && <section className="creative-brief-editor">
+        <div className="brief-form-card"><h2 className="brief-section-title">Creative Brief</h2><p className="brief-section-subtitle">AI draft. Review every section before approval. Belum ditentukan means the source did not provide that detail.</p></div>
+        {Object.entries(creativeSectionLabels).map(([key, label]) => <div className="brief-form-card" key={key}>
+          <TextArea id={`creative-${key}`} label={label} rows={key === 'timeline' ? 8 : 6} value={creativeSections[key as keyof CreativeSections]}
+            onChange={e => setCreativeSections({ ...creativeSections, [key]: e.target.value })} disabled={isBusy} />
+        </div>)}
+      </section>}
+      {initialBrief.creative_sections && <GenerateShotPanel projectId={projectId} brief={initialBrief} onGenerated={onUpdateSuccess} />}
+      {!!initialBrief.storyboard?.length && <section className="brief-storyboard-preview">
+        <h2 className="brief-section-title">Storyboard · {initialBrief.storyboard.length} shots</h2>
+        <p className="brief-section-subtitle">Draft shots have been added to the Shot Board. Review and edit them in the project workspace.</p>
+        <ol>{initialBrief.storyboard.map((shot, i) => <li key={i}><span>{String(i + 1).padStart(2, '0')}</span><div><h3>{shot.title}</h3><p>{shot.description}</p>{Object.entries(shot).filter(([key]) => !['title', 'description'].includes(key)).map(([key, value]) => <p key={key}><strong>{key.replaceAll('_', ' ')}:</strong> {value}</p>)}</div></li>)}</ol>
+      </section>}
       <div className="brief-form-section">
         <h3 className="brief-section-title">Structured Direction</h3>
         <p className="brief-section-subtitle">

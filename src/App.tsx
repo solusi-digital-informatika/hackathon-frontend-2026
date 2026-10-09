@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from './core/layout/AppShell';
+import { DashboardPage } from './modules/dashboard/pages/DashboardPage';
 import { MoodboardsListPage } from './modules/moodboards/pages/MoodboardsListPage';
 import { MoodboardWorkspacePage } from './modules/moodboards/pages/MoodboardWorkspacePage';
 import { ProjectsListPage } from './modules/projects/pages/ProjectsListPage';

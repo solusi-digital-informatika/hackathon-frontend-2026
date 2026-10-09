@@ -9,17 +9,39 @@ import { Button } from '../../../core/ui/Button/Button';
 import { LoadingIndicator } from '../../../core/ui/Loading/LoadingIndicator';
 import { ErrorBanner } from '../../../core/ui/Banner/ErrorBanner';
 import { ApiClientError } from '../../../core/network/api-client';
+import { useStoredStringList } from '../../../core/hooks/useStoredStringList';
+import { BranchMap } from '../../../core/ui/BranchMap/BranchMap';
+import { ShotRevisionPanel } from './ShotRevisionPanel';
+import { useShotImages, imageError } from '../hooks/useShotImages';
+import { ShotImageUserManual } from './ShotImageUserManual';
 
 export interface ShotBoardProps {
   projectId: string;
 }
 
 export const ShotBoard: React.FC<ShotBoardProps> = ({ projectId }) => {
+  const { images, reload: reloadImages } = useShotImages(projectId);
+  const [batchBusy, setBatchBusy] = useState(false);
   const [shots, setShots] = useState<Shot[]>([]);
+  const [hiddenIds, setHidden] = useStoredStringList(`shot-board:hidden:${projectId}`);
+  const hiddenShots = shots.filter(shot => hiddenIds.includes(shot.id));
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [batchImageNotice, setBatchImageNotice] = useState<string | null>(null);
+  const approvedImageShots = shots.filter(shot => shot.status === 'approved' && (!shot.revision_summary || shot.revision_summary.status === 'approved'));
+  const generateAllImages = async () => {
+    if (batchBusy) return;
+    setBatchBusy(true); setBatchImageNotice(null);
+    try {
+      const result = await shotsApi.generateApprovedImages(projectId);
+      setBatchImageNotice(`${result.queued} gambar masuk antrean. Shot yang sudah memiliki gambar atau sedang diproses dilewati. Termasuk shot approved yang tersembunyi.`);
+      await reloadImages();
+    } catch (err) { setBatchImageNotice(err instanceof Error ? err.message : 'Gagal memulai generate gambar.'); }
+    finally { setBatchBusy(false); }
+  };
 
-  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'list' | 'mindmap'>('cards');
+  const [mapShotId, setMapShotId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | ShotStatus>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -33,6 +55,7 @@ export const ShotBoard: React.FC<ShotBoardProps> = ({ projectId }) => {
     if (!projectId) return;
     setLoading(true);
     setError(null);
+    setBatchImageNotice(null);
     try {
       const res = await shotsApi.getShots(projectId);
       const sorted = [...(res.items || [])].sort(
@@ -131,9 +154,9 @@ export const ShotBoard: React.FC<ShotBoardProps> = ({ projectId }) => {
         shot.title.toLowerCase().includes(normalizedQuery) ||
         shot.id.toLowerCase().includes(normalizedQuery) ||
         (shot.description && shot.description.toLowerCase().includes(normalizedQuery));
-      return matchesStatus && matchesSearch;
+      return !hiddenIds.includes(shot.id) && matchesStatus && matchesSearch;
     });
-  }, [shots, statusFilter, searchQuery]);
+  }, [shots, statusFilter, searchQuery, hiddenIds]);
 
   const nextSequenceOrder = useMemo(() => {
     if (shots.length === 0) return 1;
@@ -147,6 +170,7 @@ export const ShotBoard: React.FC<ShotBoardProps> = ({ projectId }) => {
       <div className="shot-board-toolbar" data-testid="shot-board-toolbar">
         <div className="shot-board-toolbar-left">
           <div className="shot-view-switchers" role="group" aria-label="View mode">
+            <button type="button" className={`btn-view-toggle ${viewMode === 'mindmap' ? 'active' : ''}`} aria-pressed={viewMode === 'mindmap'} onClick={() => setViewMode('mindmap')}>Mindmap</button>
             <button
               type="button"
               className={`btn-view-toggle ${viewMode === 'cards' ? 'active' : ''}`}
@@ -204,6 +228,15 @@ export const ShotBoard: React.FC<ShotBoardProps> = ({ projectId }) => {
 
         <div className="shot-board-toolbar-right">
           <Button
+            variant="secondary"
+            size="sm"
+            disabled={loading || !!error || batchBusy || approvedImageShots.length === 0}
+            onClick={generateAllImages}
+            title="Semua shot approved dalam proyek, termasuk shot tersembunyi"
+          >
+            {batchBusy ? 'Queueing Images...' : `Generate All Approved Images (${approvedImageShots.length})`}
+          </Button>
+          <Button
             variant="primary"
             size="sm"
             onClick={handleOpenAddModal}
@@ -215,6 +248,22 @@ export const ShotBoard: React.FC<ShotBoardProps> = ({ projectId }) => {
       </div>
 
       {/* Loading State */}
+      <ShotImageUserManual key={projectId} projectId={projectId} issues={images.filter(image => (image.status === 'failed' || image.status === 'stale') && shots.some(shot => shot.id === image.shot_id && shot.status === 'approved' && image.version_number === (shot.revision_summary?.version || 1)))} />
+      {images.some(image => image.status === 'queued' || image.status === 'running') && <p role="status">Generate gambar: {images.filter(image => image.status === 'succeeded').length} selesai · {images.filter(image => image.status === 'queued' || image.status === 'running').length} dalam proses.</p>}
+      {images.some(image => image.status === 'failed' || image.status === 'stale') && <details className="shot-hidden-list"><summary>Gambar gagal diproses ({images.filter(image => image.status === 'failed' || image.status === 'stale').length})</summary><ul>{images.filter(image => image.status === 'failed' || image.status === 'stale').map(image => <li key={image.revision_id}>{shots.find(shot => shot.id === image.shot_id)?.title || image.shot_id} · v{image.version_number}: {imageError(image.error_code)}</li>)}</ul></details>}
+      {batchImageNotice && <div className="shot-batch-image-notice" role="status">
+        <p>{batchImageNotice}</p>
+        <Button variant="secondary" size="sm" onClick={() => setBatchImageNotice(null)}>Dismiss</Button>
+      </div>}
+      {!loading && hiddenShots.length > 0 && <details className="shot-hidden-list">
+        <summary>Hidden shots ({hiddenShots.length})</summary>
+        <p>Hidden only in this browser. Shot details and revision history are preserved.</p>
+        <ul>{hiddenShots.map(shot => <li key={shot.id}>
+          <span>#{shot.sequence_order} · {shot.title}</span>
+          <Button variant="secondary" size="sm" onClick={() => handleOpenEditModal(shot)}>Details</Button>
+          <Button variant="secondary" size="sm" aria-label={`Show shot ${shot.title}`} onClick={() => setHidden(shot.id, false)}>Show shot</Button>
+        </li>)}</ul>
+      </details>}
       {loading && (
         <LoadingIndicator message="Loading shots..." />
       )}
@@ -262,6 +311,17 @@ export const ShotBoard: React.FC<ShotBoardProps> = ({ projectId }) => {
       )}
 
       {/* Content State: Cards Grid */}
+      {!loading && !error && shots.length > 0 && viewMode === 'mindmap' && <>
+        <p>Pilih shot untuk melihat cabang revisinya. Badge menunjukkan versi aktif dan revisi yang menunggu approval.</p>
+        {filteredShots.length === 0 ? <p>No visible shots match your filters. Check Hidden shots or clear your search.</p> : <BranchMap title="Shot Management" selectedId={mapShotId ?? undefined} onSelect={id => setMapShotId(id)} nodes={filteredShots.map(shot => ({
+          id: shot.id, label: `SHOT ${String(shot.sequence_order).padStart(2, '0')} · ${shot.id}`, title: shot.title, summary: shot.description || 'No description',
+          badges: <><ShotStatusBadge status={shot.status} shotId={shot.id} size="sm" /><span>Active v{shot.revision_summary?.version || 1}</span>{!!shot.revision_summary?.pending && <span className="branch-map-pending">{shot.revision_summary.pending} pending revisions</span>}</>,
+        }))} />}
+        {filteredShots.filter(shot => shot.id === mapShotId).map(shot => <section key={shot.id} className="shot-map-detail">
+          <div className="shot-map-detail-header"><h3>Shot #{shot.sequence_order}: {shot.title}</h3><Button variant="secondary" size="sm" onClick={() => { setHidden(shot.id, true); setMapShotId(null); }}>Hide shot</Button><Button variant="secondary" size="sm" onClick={() => setMapShotId(null)}>Close details</Button></div>
+          <ShotRevisionPanel shot={shot} onApplied={() => { void fetchShots(); }} />
+        </section>)}
+      </>}
       {!loading && !error && shots.length > 0 && viewMode === 'cards' && (
         <>
           {filteredShots.length === 0 ? (
@@ -284,6 +344,7 @@ export const ShotBoard: React.FC<ShotBoardProps> = ({ projectId }) => {
                 <ShotCard
                   key={shot.id}
                   shot={shot}
+                  image={images.find(image => image.shot_id === shot.id && image.version_number === (shot.revision_summary?.version || 1))}
                   isFirst={index === 0}
                   isLast={index === filteredShots.length - 1}
                   onEdit={handleOpenEditModal}
@@ -387,6 +448,9 @@ export const ShotBoard: React.FC<ShotBoardProps> = ({ projectId }) => {
         nextSequenceOrder={nextSequenceOrder}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleModalSubmit}
+        onRevisionApplied={() => { void fetchShots(); }}
+        isHidden={activeShot ? hiddenIds.includes(activeShot.id) : false}
+        onToggleHidden={activeShot ? () => { setHidden(activeShot.id, !hiddenIds.includes(activeShot.id)); setIsModalOpen(false); } : undefined}
       />
 
       {/* Delete Confirmation Modal */}

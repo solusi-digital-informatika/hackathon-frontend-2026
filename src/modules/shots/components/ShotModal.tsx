@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { Shot, ShotStatus, CreateShotPayload, UpdateShotPayload } from '../types/shot.types';
 import { Button } from '../../../core/ui/Button/Button';
 import { ApiClientError } from '../../../core/network/api-client';
+import { ShotRevisionPanel } from './ShotRevisionPanel';
 
 export interface ShotModalProps {
   isOpen: boolean;
@@ -10,6 +11,9 @@ export interface ShotModalProps {
   nextSequenceOrder?: number;
   onClose: () => void;
   onSubmit: (payload: CreateShotPayload | UpdateShotPayload) => Promise<void>;
+  onRevisionApplied?: () => void;
+  isHidden?: boolean;
+  onToggleHidden?: () => void;
 }
 
 export const ShotModal: React.FC<ShotModalProps> = ({
@@ -19,6 +23,9 @@ export const ShotModal: React.FC<ShotModalProps> = ({
   nextSequenceOrder,
   onClose,
   onSubmit,
+  onRevisionApplied,
+  isHidden = false,
+  onToggleHidden,
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -50,6 +57,16 @@ export const ShotModal: React.FC<ShotModalProps> = ({
 
   if (!isOpen) {
     return null;
+  }
+
+  if (mode === 'edit' && shot && onRevisionApplied) {
+    return <div className="modal-backdrop" onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
+      <div className="modal-dialog shot-revision-modal" role="dialog" aria-modal="true" aria-label={`Revision history for ${shot.title}`}>
+        <header className="modal-header"><h2 className="modal-title">{shot.title}</h2><Button type="button" variant="secondary" onClick={onClose}>Close</Button></header>
+        <div className="modal-body"><ShotRevisionPanel shot={shot} onApplied={onRevisionApplied} /></div>
+        {onToggleHidden && <footer className="modal-footer"><Button type="button" variant="secondary" onClick={onToggleHidden}>{isHidden ? 'Show shot' : 'Hide shot'}</Button></footer>}
+      </div>
+    </div>;
   }
 
   const validate = (): boolean => {
@@ -149,6 +166,11 @@ export const ShotModal: React.FC<ShotModalProps> = ({
 
         <form onSubmit={handleSubmit} noValidate>
           <div className="modal-body">
+            {shot?.generation_details && <details className="shot-generation-details" open>
+              <summary>Generated storyboard details</summary>
+              <p className="form-helper-text">Original AI draft for this shot. No image has been generated.</p>
+              <dl>{Object.entries(shot.generation_details).filter(([key]) => !['title', 'description'].includes(key)).map(([key, value]) => <div key={key}><dt>{key.replaceAll('_', ' ')}</dt><dd>{value}</dd></div>)}</dl>
+            </details>}
             {serverError && (
               <div className="modal-error-banner" role="alert">
                 {serverError}

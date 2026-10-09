@@ -1,10 +1,12 @@
 import React from 'react';
-import type { Shot } from '../types/shot.types';
+import type { Shot, ShotImage } from '../types/shot.types';
+import { shotImageUrl } from '../hooks/useShotImages';
 import { ShotStatusBadge } from './ShotStatusBadge';
 import { Button } from '../../../core/ui/Button/Button';
 
 export interface ShotCardProps {
   shot: Shot;
+  image?: ShotImage;
   isFirst: boolean;
   isLast: boolean;
   onEdit: (shot: Shot) => void;
@@ -15,6 +17,7 @@ export interface ShotCardProps {
 
 export const ShotCard: React.FC<ShotCardProps> = ({
   shot,
+  image,
   isFirst,
   isLast,
   onEdit,
@@ -57,7 +60,7 @@ export const ShotCard: React.FC<ShotCardProps> = ({
         data-testid={`shot-thumbnail-${shot.id}`}
         aria-label="Shot thumbnail preview"
       >
-        <div className="shot-thumbnail-placeholder">
+        {image?.status === 'succeeded' ? <img className="shot-thumbnail-image" src={shotImageUrl(image)} alt={`Storyboard ${shot.title}`} loading="lazy" /> : <div className="shot-thumbnail-placeholder">
           <svg
             className="shot-thumbnail-icon"
             viewBox="0 0 24 24"
@@ -72,11 +75,12 @@ export const ShotCard: React.FC<ShotCardProps> = ({
             <circle cx="9" cy="9" r="2" />
             <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
           </svg>
-          <span className="shot-thumbnail-text">No Asset Selected</span>
-        </div>
+          <span className="shot-thumbnail-text">{image?.status === 'queued' || image?.status === 'running' ? 'Generating image...' : image?.status === 'failed' ? 'Image generation failed' : 'No Asset Selected'}</span>
+        </div>}
       </div>
 
       <div className="shot-card-body">
+        {shot.revision_summary && <p className="shot-version-line">v{shot.revision_summary.version} · current{shot.revision_summary.pending > 0 ? ` · ${shot.revision_summary.pending} awaiting approval` : ''}</p>}
         <h3 id={`shot-title-${shot.id}`} className="shot-card-title">
           {shot.title}
         </h3>
@@ -120,12 +124,14 @@ export const ShotCard: React.FC<ShotCardProps> = ({
             onClick={() => onEdit(shot)}
             aria-label={`Edit shot ${shot.title}`}
           >
-            Edit
+            Revisions
           </Button>
           <Button
             variant="secondary"
             size="sm"
             className="btn-danger-text"
+            disabled={shot.revision_summary?.protected}
+            title={shot.revision_summary?.protected ? 'Revision history is preserved' : undefined}
             onClick={() => onDelete(shot)}
             aria-label={`Delete shot ${shot.title}`}
           >
