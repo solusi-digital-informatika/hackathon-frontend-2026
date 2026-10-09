@@ -2,6 +2,10 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { projectsApi } from '../api/projects-api';
 import type { Project } from '../types/project.types';
+import { briefApi } from '../../brief/api/brief-api';
+import type { ProjectBrief } from '../../brief/types/brief.types';
+import { BriefSummaryCard } from '../../brief/components/BriefSummaryCard';
+import { BriefStatusBadge } from '../../brief/components/BriefStatusBadge';
 import { ApiClientError } from '../../../core/network/api-client';
 import { Button } from '../../../core/ui/Button/Button';
 import { IdBadge } from '../../../core/ui/Badge/IdBadge';
@@ -15,6 +19,8 @@ export const ProjectOverviewPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [project, setProject] = useState<Project | null>(null);
+  const [brief, setBrief] = useState<ProjectBrief | null>(null);
+  const [briefLoading, setBriefLoading] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<{
     status: number;
@@ -30,6 +36,16 @@ export const ProjectOverviewPage: React.FC = () => {
     try {
       const data = await projectsApi.getProject(id);
       setProject(data);
+
+      try {
+        setBriefLoading(true);
+        const briefData = await briefApi.getActiveBrief(id);
+        setBrief(briefData.brief);
+      } catch {
+        setBrief(null);
+      } finally {
+        setBriefLoading(false);
+      }
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError({
@@ -58,6 +74,12 @@ export const ProjectOverviewPage: React.FC = () => {
 
   const handleBackToProjects = () => {
     navigate('/projects');
+  };
+
+  const handleOpenBriefWorkspace = () => {
+    if (project) {
+      navigate(`/projects/${encodeURIComponent(project.id)}/brief`);
+    }
   };
 
   return (
@@ -101,16 +123,35 @@ export const ProjectOverviewPage: React.FC = () => {
       {!loading && !error && project && (
         <>
           <header className="project-overview-header">
-            <h1 className="page-title">{project.name}</h1>
-            <div className="project-overview-meta">
-              <IdBadge id={project.id} />
-              <span className="overview-status-container">
-                <StatusBadge status={project.status} />
-              </span>
+            <div className="project-overview-header-row">
+              <div className="project-overview-header-info">
+                <h1 className="page-title">{project.name}</h1>
+                <div className="project-overview-meta">
+                  <IdBadge id={project.id} />
+                  <span className="overview-status-container">
+                    <StatusBadge status={project.status} />
+                  </span>
+                  {brief && (
+                    <span className="overview-brief-status-container" data-testid="overview-brief-badge">
+                      <BriefStatusBadge status={brief.review_status} />
+                    </span>
+                  )}
+                </div>
+                {project.description && (
+                  <p className="project-overview-description">{project.description}</p>
+                )}
+              </div>
+              <div className="project-overview-header-actions">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleOpenBriefWorkspace}
+                  data-testid="header-brief-workspace-btn"
+                >
+                  Brief Workspace
+                </Button>
+              </div>
             </div>
-            {project.description && (
-              <p className="project-overview-description">{project.description}</p>
-            )}
           </header>
 
           <main className="workspace-grid">
@@ -118,9 +159,29 @@ export const ProjectOverviewPage: React.FC = () => {
               <h2 id="brief-heading" className="workspace-section-title">
                 Active Brief
               </h2>
-              <div className="workspace-placeholder">
-                No brief yet
-              </div>
+              {briefLoading ? (
+                <LoadingIndicator message="Loading active brief..." />
+              ) : brief ? (
+                <BriefSummaryCard
+                  brief={brief}
+                  projectId={project.id}
+                  onOpenWorkspace={handleOpenBriefWorkspace}
+                />
+              ) : (
+                <div className="workspace-placeholder" data-testid="brief-placeholder">
+                  <p>No brief yet</p>
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleOpenBriefWorkspace}
+                      data-testid="open-brief-workspace-btn"
+                    >
+                      Open Brief Workspace
+                    </Button>
+                  </div>
+                </div>
+              )}
             </section>
 
             <section className="workspace-section workspace-shots-section" aria-labelledby="shots-heading">

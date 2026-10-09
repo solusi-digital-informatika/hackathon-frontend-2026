@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ProjectOverviewPage } from '../ProjectOverviewPage';
 import { projectsApi } from '../../api/projects-api';
 import { shotsApi } from '../../../shots/api/shots-api';
+import { briefApi } from '../../../brief/api/brief-api';
 import { ApiClientError } from '../../../../core/network/api-client';
 
 vi.mock('../../api/projects-api', () => ({
@@ -20,6 +21,12 @@ vi.mock('../../../shots/api/shots-api', () => ({
     createShot: vi.fn(),
     updateShot: vi.fn(),
     deleteShot: vi.fn(),
+  },
+}));
+
+vi.mock('../../../brief/api/brief-api', () => ({
+  briefApi: {
+    getActiveBrief: vi.fn().mockResolvedValue({ sourceDocument: null, brief: null }),
   },
 }));
 
@@ -237,5 +244,87 @@ describe('ProjectOverviewPage', () => {
     expect(screen.getByText('Establishing Aerial Alleyway')).toBeInTheDocument();
     expect(screen.getByText('#01')).toBeInTheDocument();
     expect(screen.getByText('[○ Draft]')).toBeInTheDocument();
+  });
+
+  it('renders BriefSummaryCard and header brief badge when active brief is present', async () => {
+    vi.mocked(projectsApi.getProject).mockResolvedValueOnce({
+      id: 'prj_01',
+      name: 'CyberPulse',
+      description: 'Test description',
+      status: 'draft',
+      created_at: '2026-10-09T09:00:00Z',
+      updated_at: '2026-10-09T09:00:00Z',
+    });
+
+    vi.mocked(briefApi.getActiveBrief).mockResolvedValueOnce({
+      sourceDocument: null,
+      brief: {
+        id: 'brief_01',
+        project_id: 'prj_01',
+        objective: 'Deliver the core',
+        visual_style: 'Realistic Cinematic Cyberpunk',
+        lighting_mood: 'Moody cool blue lighting',
+        characters: [{ name: 'Aria', details: 'athletic build' }],
+        key_props: [{ name: 'Data Core', details: 'hexagonal slate' }],
+        constraints: ['No confidential footage'],
+        unresolved_questions: [],
+        review_status: 'approved',
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/projects/prj_01']}>
+        <Routes>
+          <Route path="/projects/:id" element={<ProjectOverviewPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1, name: 'CyberPulse' })).toBeInTheDocument();
+    });
+
+    // Header badge
+    const headerBadge = screen.getByTestId('overview-brief-badge');
+    expect(headerBadge).toBeInTheDocument();
+    expect(within(headerBadge).getByText('[● Approved]')).toBeInTheDocument();
+
+    // Brief summary card
+    const summaryCard = await screen.findByTestId('brief-summary-card');
+    expect(summaryCard).toBeInTheDocument();
+    expect(within(summaryCard).getByText('[● Approved]')).toBeInTheDocument();
+    expect(screen.getByText('Deliver the core')).toBeInTheDocument();
+    expect(screen.getByText('Realistic Cinematic Cyberpunk')).toBeInTheDocument();
+    expect(screen.getByText('Moody cool blue lighting')).toBeInTheDocument();
+  });
+
+  it('navigates to brief workspace when Brief Workspace button is clicked', async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(projectsApi.getProject).mockResolvedValueOnce({
+      id: 'prj_01',
+      name: 'CyberPulse',
+      status: 'draft',
+      created_at: '2026-10-09T09:00:00Z',
+      updated_at: '2026-10-09T09:00:00Z',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/projects/prj_01']}>
+        <Routes>
+          <Route path="/projects/:id" element={<ProjectOverviewPage />} />
+          <Route path="/projects/:id/brief" element={<div>Brief Workspace Page Mock</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1, name: 'CyberPulse' })).toBeInTheDocument();
+    });
+
+    const briefWorkspaceBtn = screen.getByTestId('header-brief-workspace-btn');
+    await user.click(briefWorkspaceBtn);
+
+    expect(screen.getByText('Brief Workspace Page Mock')).toBeInTheDocument();
   });
 });
